@@ -1,0 +1,22 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+
+# environment variables
+.env
+.env.*
+
+
+# Backend
+chatServer/node_modules/
+chatServer/.env
+chatServer/npm-debug.log*
+chatServer/yarn-debug.log*
+
+# frontend
+chatClient/node_modules/
+chatClient/.env
+chatClient/npm-debug.log*
+chatClient/yarn-debug.log*
+
