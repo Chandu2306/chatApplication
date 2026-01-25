@@ -7,6 +7,11 @@
         <link rel="stylesheet" href="<?php echo base_url("assets/register.css")?>">
 </head>
 <body>
+    <?php if ($msg = $this->session->flashdata('toast_error')): ?>
+      <div class="toast toast-error">
+        <?= htmlspecialchars($msg) ?>
+      </div>
+    <?php endif; ?>
 
   <div class="container">
     <div class="register-card">
@@ -23,13 +28,30 @@
 
         <p>already have an account ? <a href="<?=site_url("chatcontroller/login");?>">login</a></p>
         <button type="submit">Register</button>
-        <?php if(isset($error)){ ?>
-            <p><?=$error?></p>
-        <?php } ?>
+
       </form>
 
     </div>
   </div>
+<script>
+  const error = <?= isset($error) ? json_encode($error) : '' ?>;
+  console.log(error);
+  if(error!= ""){
+    showToast(error);
+  }
+function showToast(msg) {
+	const toastContainer = document.getElementById("toaster");
+	toastContainer.classList.remove("hidden");
+	toastContainer.innerHTML = `<div class="toastMsg">${msg}</div> `;
 
+	setTimeout(() => {
+		toastContainer.firstChild.style.opacity = "0";
+		setTimeout(() => {
+			toastContainer.classList.add("hidden");
+		}, 300);
+	}, 1500);
+}
+
+</script>
 </body>
 </html>

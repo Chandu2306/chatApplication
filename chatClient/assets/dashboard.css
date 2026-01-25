@@ -64,6 +64,13 @@ body {
 	overflow-y: auto;
 }
 
+.users-panel input[type="search"] {
+	padding: 8px 10px;
+	border-radius: 6px;
+	border: 1px solid #ccc;
+	margin-bottom: 10px;
+}
+
 .users-panel h3 {
 	margin: 10px 0;
 	font-size: 15px;
@@ -71,34 +78,32 @@ body {
 	color: #333;
 }
 
-/* ================= USER & GROUP LIST ================= */
-#usersList,
-#groupsList {
+/* ================= COMBINED CHAT LIST ================= */
+#chatsList {
 	list-style: none;
-	margin-bottom: 10px;
 }
 
-#usersList li,
-#groupsList li {
+#chatsList li {
 	padding: 10px 12px;
 	margin-bottom: 6px;
 	border-radius: 6px;
 	cursor: pointer;
 	display: flex;
-	justify-content: space-between;
 	align-items: center;
-	transition: background 0.2s;
+	justify-content: space-between;
 	font-size: 14px;
+	transition: background 0.2s;
 }
 
-#usersList li:hover,
-#groupsList li:hover {
+#chatsList li:hover {
 	background: #e3f2fd;
 }
 
-#groupsList li {
+/* group row */
+#chatsList li[data-type="group"] {
 	font-weight: 500;
 	color: #1e88e5;
+	gap: 8px;
 }
 
 /* ================= STATUS DOT ================= */
@@ -153,14 +158,9 @@ body {
 	border-radius: 12px;
 	font-size: 14px;
 	word-wrap: break-word;
-	overflow-wrap: break-word;
 }
 
-.chat-messages li p {
-	word-break: break-word;
-}
-
-/* SENT */
+/* sent */
 .sent_message {
 	background: #1e88e5;
 	color: white;
@@ -168,7 +168,7 @@ body {
 	border-bottom-right-radius: 2px;
 }
 
-/* RECEIVED */
+/* received */
 .received_message {
 	background: #e0e0e0;
 	color: #333;
@@ -176,47 +176,11 @@ body {
 	border-bottom-left-radius: 2px;
 }
 
-/* TIME */
 .time_text {
 	font-size: 11px;
 	opacity: 0.7;
 	display: block;
 	margin-top: 4px;
-}
-
-/* ================= MEDIA SUPPORT ================= */
-.chat-media {
-	max-width: 100%;
-	border-radius: 8px;
-	margin-top: 6px;
-	display: block;
-}
-
-/* Image */
-.chat-media img {
-	max-height: 150px;
-	object-fit: cover;
-	cursor: pointer;
-}
-
-/* Video */
-.chat-media video {
-	max-height: 260px;
-	border-radius: 8px;
-}
-
-/* Document */
-.chat-messages a {
-	display: inline-block;
-	margin-top: 6px;
-	color: #0d47a1;
-	font-size: 14px;
-	text-decoration: none;
-	word-break: break-all;
-}
-
-.chat-messages a:hover {
-	text-decoration: underline;
 }
 
 /* ================= INPUT ================= */
@@ -228,7 +192,6 @@ body {
 	border-top: 1px solid #ddd;
 }
 
-/* Text input */
 .chat-input input[type="text"] {
 	flex: 1;
 	padding: 10px 14px;
@@ -237,7 +200,6 @@ body {
 	outline: none;
 }
 
-/* Send button */
 .chat-input button {
 	padding: 10px 18px;
 	border: none;
@@ -247,27 +209,7 @@ body {
 	cursor: pointer;
 }
 
-/* ================= PAPERCLIP BUTTON ================= */
-.attach-btn {
-	width: 38px;
-	height: 38px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: #f1f1f1;
-	border-radius: 50%;
-	cursor: pointer;
-	transition: background 0.2s;
-	color: #555;
-	font-size: 16px;
-}
-
-.attach-btn:hover {
-	background: #e0e0e0;
-	color: #1e88e5;
-}
-
-/* ================= MODAL OVERLAY ================= */
+/* ================= MODAL ================= */
 #modalContainer {
 	position: fixed;
 	inset: 0;
@@ -278,7 +220,6 @@ body {
 	z-index: 1000;
 }
 
-/* ================= GROUP MODAL ================= */
 .groupCreationModal {
 	background: #fff;
 	width: 420px;
@@ -297,12 +238,6 @@ body {
 	border: 1px solid #ccc;
 }
 
-.groupCreationModal h4 {
-	font-size: 14px;
-	color: #444;
-}
-
-/* ================= USER SELECTION LIST ================= */
 #listForGroupCreation {
 	list-style: none;
 	border: 1px solid #ddd;
@@ -317,20 +252,6 @@ body {
 	border-bottom: 1px solid #eee;
 }
 
-#listForGroupCreation li:last-child {
-	border-bottom: none;
-}
-
-#listForGroupCreation li:hover:not(.selected) {
-	background: #e3f2fd;
-}
-
-#listForGroupCreation li.selected {
-	background: #2e7d32;
-	color: white;
-}
-
-/* ================= SELECTED MEMBERS ================= */
 #selectedMembersList {
 	display: flex;
 	flex-wrap: wrap;
@@ -338,41 +259,12 @@ body {
 }
 
 .selected-member {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
 	background: #e3f2fd;
 	color: #1e88e5;
 	padding: 6px 10px;
 	border-radius: 14px;
 	font-size: 13px;
-}
-
-.remove-member {
 	cursor: pointer;
-	font-weight: bold;
-	color: #ff5252;
-}
-
-.remove-member:hover {
-	color: #d32f2f;
-}
-
-/* ================= BUTTON ================= */
-.groupCreationModal button {
-	margin-top: auto;
-	padding: 10px;
-	border: none;
-	border-radius: 20px;
-	background: #1e88e5;
-	color: white;
-	font-size: 14px;
-	cursor: pointer;
-}
-
-button:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
 }
 
 /* ================= EXTRAS ================= */
@@ -387,51 +279,133 @@ button:disabled {
 	padding: 5px 10px;
 	height: 18px;
 }
-/* ================= GROUP LIST ICON ================= */
-#groupsList li {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	font-weight: 500;
-	color: #1e88e5;
-}
 
-/* Group icon */
 .group-icon {
 	font-size: 14px;
 	color: #1e88e5;
 }
+/* ================= CREATE GROUP MODAL ================= */
 
-/* Hover enhancement */
-#groupsList li:hover .group-icon {
-	color: #0d47a1;
-}
-/* ================= FILE PREVIEW ================= */
-.file-preview {
-	position: absolute;
-	bottom: 60px;
-	left: 15px;
-	background: #fff;
-	border: 1px solid #ddd;
-	border-radius: 8px;
-	padding: 6px 10px;
-	display: flex;
+#modalContainer {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.45);
+	display: none;
 	align-items: center;
-	gap: 8px;
-	max-width: 260px;
-	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-	font-size: 13px;
+	justify-content: center;
+	z-index: 1000;
 }
 
-.file-preview img {
-	width: 40px;
-	height: 40px;
-	object-fit: cover;
-	border-radius: 6px;
+.groupCreationModal {
+	background: #ffffff;
+	width: 420px;
+	max-height: 80vh;
+	border-radius: 14px;
+	padding: 18px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+	overflow: hidden;
 }
 
-.file-preview .remove-file {
+.groupCreationModal h3 {
+	font-size: 18px;
+	font-weight: 600;
+	color: #333;
+}
+
+.groupCreationModal h4 {
+	font-size: 14px;
+	color: #555;
+	margin-top: 6px;
+}
+
+.groupCreationModal input {
+	padding: 10px 12px;
+	border-radius: 8px;
+	border: 1px solid #ccc;
+	font-size: 14px;
+	outline: none;
+}
+
+.groupCreationModal input:focus {
+	border-color: #1e88e5;
+}
+
+/* ================= USER LIST ================= */
+
+#listForGroupCreation {
+	list-style: none;
+	border: 1px solid #ddd;
+	border-radius: 10px;
+	max-height: 180px;
+	overflow-y: auto;
+}
+
+#listForGroupCreation li {
+	padding: 10px 12px;
 	cursor: pointer;
-	color: #ff5252;
-	font-weight: bold;
+	font-size: 14px;
+	border-bottom: 1px solid #eee;
+	transition: background 0.2s;
+}
+
+#listForGroupCreation li:last-child {
+	border-bottom: none;
+}
+
+#listForGroupCreation li:hover {
+	background: #e3f2fd;
+}
+
+/* ================= SELECTED MEMBERS ================= */
+
+#selectedMembersList {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.selected-member {
+	background: #e3f2fd;
+	color: #1e88e5;
+	padding: 6px 10px;
+	border-radius: 16px;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+/* ================= MODAL BUTTONS ================= */
+
+.groupCreationModal button {
+	padding: 10px;
+	border: none;
+	border-radius: 20px;
+	font-size: 14px;
+	cursor: pointer;
+}
+
+#createGroupBtn {
+	background: #1e88e5;
+	color: #fff;
+}
+
+#closeGroupModal {
+	background: #e0e0e0;
+	color: #333;
+}
+#closeGroupModal:hover {
+	background: red;
+}
+.users-panel input[type="search"] {
+	padding: 8px 12px;
+	border-radius: 8px;
+	border: 1px solid #ccc;
+	outline: none;
+	margin-bottom: 10px;
+}
+
+.users-panel input[type="search"]:focus {
+	border-color: #1e88e5;
 }

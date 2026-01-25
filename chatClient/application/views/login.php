@@ -7,7 +7,11 @@
         <link rel="stylesheet" href="<?php echo base_url("assets/register.css")?>">
 </head>
 <body>
-
+    <?php if ($msg = $this->session->flashdata('toast_error')): ?>
+      <div class="toast toast-error">
+        <?= htmlspecialchars($msg) ?>
+      </div>
+    <?php endif; ?>
   <div class="container">
     <div class="register-card">
       <h2>login </h2>

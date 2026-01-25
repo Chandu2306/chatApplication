@@ -68,3 +68,30 @@ button {
 button:hover {
 	background: #5563d6;
 }
+.toast {
+	position: fixed;
+	top: 20px;
+	right: 5%;
+
+	background: #e74c3c;
+	color: #fff;
+	padding: 14px 20px;
+	border-radius: 8px;
+
+	font-size: 14px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+
+	animation: fadeOut 3s forwards;
+}
+
+@keyframes fadeOut {
+	0% {
+		opacity: 1;
+	}
+	80% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}

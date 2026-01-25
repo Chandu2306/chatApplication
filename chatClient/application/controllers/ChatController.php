@@ -49,14 +49,14 @@ public function __construct() {
     if($response && $response["success"]){
         redirect("chatcontroller/login");
     }else{
-        $data["error"] = $response && $response["message"] ? $response["message"] : "connection issue";
-        $this->load->view("register", $data);
+        $flashMsg = $response["message"]?$response["message"] : "connection issue";
+        $this->session->set_flashdata('toast_error',$flashMsg);
+        redirect('chatcontroller/index');
     }
 
     }
 
     public function loginSubmit() {
-        // echo "<script>console.log(`login submit called`);</script>";
         $data = [
             "username" => $this->input->post("username"),
             "password" => $this->input->post("password")
@@ -76,8 +76,9 @@ public function __construct() {
         );    
     redirect("chatcontroller/dashboard");
     }else{
-        $data["error"] = $response && $response["message"] ? $response["message"] : "connection issue";
-        $this->load->view("login", $data);
+        $flashMsg = $response["message"]?$response["message"] : "connection issue";
+        $this->session->set_flashdata('toast_error',$flashMsg);
+        redirect('chatcontroller/login');
     }
     }
 

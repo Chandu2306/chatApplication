@@ -1,407 +1,453 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chat Dashboard</title>
     <link rel="stylesheet" href="<?= base_url("assets/dashboard.css") ?>">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 
 <body>
 
-<!-- ================= HEADER ================= -->
-<header class="top-bar">
-    <h2>Welcome, <?= htmlspecialchars($currentUser ?? "User") ?></h2>
 
-    <div class="buttons">
-        <button onclick="createGroupModal()">Create Group</button>
-        <a class="logout-btn" href="<?= site_url("chatController/logout") ?>">Logout</a>
-    </div>
-</header>
+    <header class="top-bar">
+        <h2>Welcome, <?= htmlspecialchars($currentUser ?? "User") ?></h2>
 
-<!-- ================= MAIN LAYOUT ================= -->
-<div class="chat-layout">
-
-    <!-- ========== SIDEBAR ========== -->
-    <aside class="users-panel">
-
-        <h3>Users</h3>
-        <ul id="usersList"></ul>
-
-        <h3 class="group-heading">Groups</h3>
-        <ul id="groupsList"></ul>
-
-    </aside>
-
-    <!-- ========== CHAT AREA ========== -->
-    <section id="messageContainer" class="chat-panel hidden">
-
-        <div class="chat-header">
-            <p id="userInfo"></p>
+        <div class="buttons">
+            <button onclick="createGroupModal()">Create Group</button>
+            <a class="logout-btn" href="<?= site_url("chatController/logout") ?>">Logout</a>
         </div>
+    </header>
 
-        <ul id="chatbox" class="chat-messages"></ul>
+    <!-- users list -->
+    <div class="chat-layout">
+        <aside class="users-panel">
+            <input type="search" id="searchChats" placeholder="Search chats...">
 
-        
-<form id="privateMessageForm" class="chat-input">
-    <input
-        id="privateMessage"
-        type="text"
-        placeholder="Type a message..."
-        autocomplete="off"
-    />
-    <button type="submit">Send</button>
-</form>
+            <h3>Chats</h3>
+            <ul id="chatsList"></ul>
+        </aside>
 
 
+        <section id="messageContainer" class="chat-panel hidden">
 
-    </section>
-</div>
+            <div class="chat-header">
+                <p id="userInfo"></p>
+            </div>
 
-<!-- ================= GROUP MODAL ================= -->
-<div id="modalContainer" style="display:none;">
-    <div class="groupCreationModal">
+            <ul id="chatbox" class="chat-messages"></ul>
 
-        <h3>Create Group</h3>
 
-        <input
-            id="groupName"
-            type="text"
-            placeholder="Enter group name"
-            autocomplete="off"
-        />
+            <form id="privateMessageForm" class="chat-input">
+                <input id="privateMessage" type="text" placeholder="Type a message..." autocomplete="off" />
+                <button type="submit">Send</button>
+            </form>
 
-        <h4>All Users</h4>
-        <ul id="listForGroupCreation"></ul>
 
-        <h4>Selected Members</h4>
-        <div id="selectedMembersList"></div>
 
-        <button id="createGroupBtn">Create Group</button>
-        <button id="closeGroupModal" onclick="closeGroupModal()">cancel</button>
-
+        </section>
     </div>
-</div>
-<script src="http://localhost:4000/socket.io/socket.io.js"></script>
-<script>
-const socket = io("http://localhost:4000");
+
+    <!-- group modal -->
+    <div id="modalContainer" style="display:none;">
+        <div class="groupCreationModal">
+
+            <h3>Create Group</h3>
+
+            <input id="groupName" type="text" placeholder="Enter group name" autocomplete="off" />
+
+            <h4>All Users</h4>
+            <ul id="listForGroupCreation"></ul>
+
+            <h4>Selected Members</h4>
+            <div id="selectedMembersList"></div>
+
+            <button id="createGroupBtn">Create Group</button>
+            <button id="closeGroupModal" onclick="closeGroupModal()">cancel</button>
+
+        </div>
+    </div>
+    <script src="http://localhost:4000/socket.io/socket.io.js"></script>
+    <script>
+    const socket = io("http://localhost:4000");
 
 
-let selectedUser = null;
-let activeGroup = null;
-let selectedMembers = [];
-let isTyping = false;
+    let selectedUser = null;
+    let activeGroup = null;
+    let selectedMembers = [];
+    let isTyping = false;
+    let combinedChats = [];
 
-// dom elements
-const currentUser = "<?= htmlspecialchars($currentUser ?? '') ?>";
-const usersList = document.getElementById("usersList");
-const groupsList = document.getElementById("groupsList");
-const chatbox = document.getElementById("chatbox");
-const messageInput = document.getElementById("privateMessage");
-const mediaFile = document.getElementById("mediaFile");
-const messageContainer = document.getElementById("messageContainer");
-const privateMessageForm = document.getElementById("privateMessageForm");
-const createGroupBtn = document.getElementById("createGroupBtn");
-const listForGroupCreation = document.getElementById("listForGroupCreation");
-const selectedMembersList = document.getElementById("selectedMembersList");
-const userInfo = document.getElementById("userInfo");
-const typingUsers = new Set();
+    const currentUser = "<?= htmlspecialchars($currentUser ?? '') ?>";
+    const chatsList = document.getElementById("chatsList");
+    const chatbox = document.getElementById("chatbox");
+    const messageInput = document.getElementById("privateMessage");
+    const messageContainer = document.getElementById("messageContainer");
+    const privateMessageForm = document.getElementById("privateMessageForm");
+    const createGroupBtn = document.getElementById("createGroupBtn");
+    const listForGroupCreation = document.getElementById("listForGroupCreation");
+    const selectedMembersList = document.getElementById("selectedMembersList");
+    const userInfo = document.getElementById("userInfo");
+    const typingUsers = new Set();
 
-const typingIndicator = document.createElement("p");
-typingIndicator.className = "typing-indicator";
-document.querySelector(".chat-header").appendChild(typingIndicator);
+    const typingIndicator = document.createElement("p");
+    typingIndicator.className = "typing-indicator";
+    document.querySelector(".chat-header").appendChild(typingIndicator);
 
-const allUsers = <?= json_encode($users); ?>;
-console.log("uers",allUsers);
+    const allUsers = <?= json_encode($users); ?>;
+    console.log("users", allUsers);
 
-function getCurrentTime12() {
-  const d = new Date();
-  let h = d.getHours(), m = d.getMinutes();
-  const ampm = h >= 12 ? "PM" : "AM";
-  h = h % 12 || 12;
-  return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
-}
-
-function scrollToBottom() {
-  chatbox.scrollTo({
-    top: chatbox.scrollHeight,
-    behavior: "smooth"
-  });
-}
-
-createGroupBtn.addEventListener("click", () => {
-  const groupName = document.getElementById("groupName").value.trim();
-
-  if (!groupName) {
-    alert("Group name required");
-    return;
-  }
-
-  if (selectedMembers.length === 0) {
-    alert("Select at least one member");
-    return;
-  }
-
-  socket.emit("createGroup", {
-    data: {
-      admin: currentUser,
-      groupName,
-      members: selectedMembers,
-      time: new Date()
+    function getCurrentTime12() {
+        const d = new Date();
+        let h = d.getHours(),
+            m = d.getMinutes();
+        const ampm = h >= 12 ? "PM" : "AM";
+        h = h % 12 || 12;
+        return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
     }
-  });
 
-  document.getElementById("modalContainer").style.display = "none";
-  selectedMembers = [];
-  selectedMembersList.innerHTML = "";
-});
+    function scrollToBottom() {
+        chatbox.scrollTo({
+            top: chatbox.scrollHeight,
+            behavior: "smooth"
+        });
+    }
 
-function renderGroupUserList() {
-  listForGroupCreation.innerHTML = "";
+    createGroupBtn.addEventListener("click", () => {
+        const groupName = document.getElementById("groupName").value.trim();
 
-  allUsers.forEach(u => {
-    if (u.username === currentUser) return;
+        if (!groupName) {
+            alert("Group name required");
+            return;
+        }
 
-    const li = document.createElement("li");
-    li.innerText = u.username;
+        if (selectedMembers.length === 0) {
+            alert("Select at least one member");
+            return;
+        }
 
-    li.onclick = () => {
-      if (selectedMembers.includes(u.username)) return;
+        socket.emit("createGroup", {
+            data: {
+                admin: currentUser,
+                groupName,
+                members: selectedMembers,
+                time: new Date()
+            }
+        });
 
-      selectedMembers.push(u.username);
-      updateSelectedMembers();
-    };
+        document.getElementById("modalContainer").style.display = "none";
+        selectedMembers = [];
+        selectedMembersList.innerHTML = "";
+    });
 
-    listForGroupCreation.appendChild(li);
-  });
-}
-function createGroupModal() {
-  document.getElementById("modalContainer").style.display = "flex";
-  renderGroupUserList();
-}
-function closeGroupModal(){
-    document.getElementById("modalContainer").style.display = "none";
-      selectedMembers = [];
-  selectedMembersList.innerHTML = "";
-}
-function updateSelectedMembers() {
-  selectedMembersList.innerHTML = "";
+    function renderGroupUserList() {
+        listForGroupCreation.innerHTML = "";
 
-  selectedMembers.forEach(member => {
-    const span = document.createElement("span");
-    span.className = "selected-member";
-    span.innerText = member;
+        allUsers.forEach(u => {
+            if (u.username === currentUser) return;
 
-    span.onclick = () => {
-      selectedMembers = selectedMembers.filter(m => m !== member);
-      updateSelectedMembers();
-    };
+            const li = document.createElement("li");
+            li.innerText = u.username;
 
-    selectedMembersList.appendChild(span);
-  });
-}
+            li.onclick = () => {
+                if (selectedMembers.includes(u.username)) return;
 
+                selectedMembers.push(u.username);
+                updateSelectedMembers();
+            };
 
+            listForGroupCreation.appendChild(li);
+        });
+    }
+    const searchInput = document.getElementById("searchChats");
 
+    searchInput.addEventListener("input", () => {
+        const query = searchInput.value.toLowerCase().trim();
 
+        const items = chatsList.querySelectorAll("li");
 
-socket.on("connect", () => {
-  socket.emit("registerUser", currentUser);
-  socket.emit("getMyGroups", currentUser);
-});
+        items.forEach(li => {
+            const name = li.dataset.name;
 
-
-socket.on("onlineUsers", users => {
-  usersList.innerHTML = "";
-
-  allUsers.forEach(u => {
-    if (u.username === currentUser) return;
-
-    const li = document.createElement("li");
-    li.innerHTML = `
-      ${u.username}
-      <span class="status-dot ${users[u.username] ? "online" : "offline"}"></span>
-    `;
-
-    li.onclick = () => {
-      selectedUser = u.username;
-      activeGroup = null;
-      userInfo.innerText = selectedUser;
-      messageContainer.classList.remove("hidden");
-      chatbox.innerHTML = "";
-      typingIndicator.innerText = "";
-      isTyping = false;
-      typingUsers.clear();
-
-      socket.emit("getChatHistory", {
-        fromUser: currentUser,
-        toUser: selectedUser
-      });
-    };
-
-    usersList.appendChild(li);
-  });
-});
-
-socket.on("myGroups", groups => {
-  groupsList.innerHTML = "";
-  groups.forEach(g => addGroup(g.groupName));
-});
-
-socket.on("joinGroup", groupName => addGroup(groupName));
-
-function addGroup(groupName) {
-  if (document.getElementById(`group-${groupName}`)) return;
-
-  const li = document.createElement("li");
-  li.id = `group-${groupName}`;
- li.innerHTML = ` ${groupName} <i class="fa-solid fa-users group-icon"></i> `;
+            if (!query || name.includes(query)) {
+                li.style.display = "flex";
+            } else {
+                li.style.display = "none";
+            }
+        });
+    });
 
 
-  li.onclick = () => {
-    activeGroup = groupName;
-    selectedUser = null;
-    userInfo.innerText = `Group: ${groupName}`;
-    messageContainer.classList.remove("hidden");
-    chatbox.innerHTML = "";
-    typingIndicator.innerText = "";
-    isTyping = false;
+    function createGroupModal() {
+        document.getElementById("modalContainer").style.display = "flex";
+        renderGroupUserList();
+    }
 
-    socket.emit("getGroupHistory", groupName);
-  };
+    function closeGroupModal() {
+        document.getElementById("modalContainer").style.display = "none";
+        selectedMembers = [];
+        selectedMembersList.innerHTML = "";
+    }
 
-  groupsList.appendChild(li);
-}
+    function updateSelectedMembers() {
+        selectedMembersList.innerHTML = "";
 
-socket.on("chatHistory", msgs => {
-  chatbox.innerHTML = "";
-  msgs.forEach(renderMessage);
-  scrollToBottom();
-});
+        selectedMembers.forEach(member => {
+            const span = document.createElement("span");
+            span.className = "selected-member";
+            span.innerText = member;
 
-socket.on("groupHistory", msgs => {
-  chatbox.innerHTML = "";
-  msgs.forEach(renderMessage);
-  scrollToBottom();
-});
+            span.onclick = () => {
+                selectedMembers = selectedMembers.filter(m => m !== member);
+                updateSelectedMembers();
+            };
 
-socket.on("receivePrivateMessage", m => {
-  if (m.fromUser === selectedUser) renderMessage(m);
-});
+            selectedMembersList.appendChild(span);
+        });
+    }
 
-socket.on("groupMsg", m => {
-  if (m.groupName === activeGroup) renderMessage(m);
-});
 
-function renderMessage(m) {
-  const li = document.createElement("li");
 
-  if (m.isGroup && m.fromUser === currentUser) {
-    li.innerHTML = `<span class="msgFrom">You</span>
+
+
+    socket.on("connect", () => {
+        socket.emit("registerUser", currentUser);
+        socket.emit("getMyGroups", currentUser);
+    });
+
+
+    socket.on("onlineUsers", users => {
+        combinedChats = [];
+
+        allUsers.forEach(u => {
+            if (u.username === currentUser) return;
+
+            combinedChats.push({
+                type: "user",
+                name: u.username,
+                online: !!users[u.username]
+            });
+        });
+
+        renderCombinedChats();
+    });
+
+
+
+    socket.on("myGroups", groups => {
+        combinedChats = combinedChats.filter(c => c.type !== "group");
+
+        groups.forEach(g => {
+            combinedChats.push({
+                type: "group",
+                name: g.groupName
+            });
+        });
+
+        renderCombinedChats();
+    });
+
+    function renderCombinedChats() {
+        chatsList.innerHTML = "";
+
+        combinedChats.forEach(chat => {
+            const li = document.createElement("li");
+            li.dataset.name = chat.name.toLowerCase();
+            li.dataset.type = chat.type;
+
+            if (chat.type === "user") {
+                li.innerHTML = `
+        <span>${chat.name}</span>
+        <span class="status-dot ${chat.online ? "online" : "offline"}"></span>
+      `;
+
+                li.onclick = () => {
+                    selectedUser = chat.name;
+                    activeGroup = null;
+                    userInfo.innerText = chat.name;
+                    messageContainer.classList.remove("hidden");
+                    chatbox.innerHTML = "";
+                    typingIndicator.innerText = "";
+
+                    socket.emit("getChatHistory", {
+                        fromUser: currentUser,
+                        toUser: chat.name
+                    });
+                };
+            }
+
+            if (chat.type === "group") {
+                li.innerHTML = `
+        <span>${chat.name}</span>
+        <i class="fa-solid fa-users group-icon"></i>
+      `;
+
+                li.onclick = () => {
+                    activeGroup = chat.name;
+                    selectedUser = null;
+                    userInfo.innerText = `Group: ${chat.name}`;
+                    messageContainer.classList.remove("hidden");
+                    chatbox.innerHTML = "";
+                    typingIndicator.innerText = "";
+
+                    socket.emit("getGroupHistory", chat.name);
+                };
+            }
+
+            chatsList.appendChild(li);
+        });
+    }
+
+    socket.on("joinGroup", groupName => {
+        if (combinedChats.some(c => c.type === "group" && c.name === groupName)) {
+            return;
+        }
+
+        combinedChats.push({
+            type: "group",
+            name: groupName
+        });
+
+        renderCombinedChats();
+    });
+
+
+    socket.on("chatHistory", msgs => {
+        chatbox.innerHTML = "";
+        msgs.forEach(renderMessage);
+        scrollToBottom();
+    });
+
+    socket.on("groupHistory", msgs => {
+        chatbox.innerHTML = "";
+        msgs.forEach(renderMessage);
+        scrollToBottom();
+    });
+
+    socket.on("receivePrivateMessage", m => {
+        if (m.fromUser === selectedUser) renderMessage(m);
+    });
+
+    socket.on("groupMsg", m => {
+        if (m.groupName === activeGroup) renderMessage(m);
+    });
+
+    function renderMessage(m) {
+        const li = document.createElement("li");
+
+        if (m.isGroup && m.fromUser === currentUser) {
+            li.innerHTML = `<span class="msgFrom">You</span>
                     <p>${m.message}</p>
                     <span class="time_text">${m.time}</span>`;
-  } 
-  else if (m.isGroup) {
-    li.innerHTML = `<span class="msgFrom">${m.fromUser}</span>
+        } else if (m.isGroup) {
+            li.innerHTML = `<span class="msgFrom">${m.fromUser}</span>
                     <p>${m.message}</p>
                     <span class="time_text">${m.time}</span>`;
-  } 
-  else {
-    li.innerHTML = `<p>${m.message}</p>
+        } else {
+            li.innerHTML = `<p>${m.message}</p>
                     <span class="time_text">${m.time}</span>`;
-  }
+        }
 
-  li.className =
-    m.fromUser === currentUser ? "sent_message" : "received_message";
+        li.className =
+            m.fromUser === currentUser ? "sent_message" : "received_message";
 
-  chatbox.appendChild(li);
-  scrollToBottom();
-}
+        chatbox.appendChild(li);
+        scrollToBottom();
+    }
 
 
-privateMessageForm.onsubmit = e => {
-  e.preventDefault();
+    privateMessageForm.onsubmit = e => {
+        e.preventDefault();
 
-  const msg = messageInput.value.trim();
-  if (!msg) return;
+        const msg = messageInput.value.trim();
+        if (!msg) return;
 
-  const time = getCurrentTime12();
+        const time = getCurrentTime12();
 
-  const messageData = {
-    fromUser: currentUser,
-    message: msg,
-    time,
-    isGroup: !!activeGroup,
-    groupName: activeGroup
-  };
+        const messageData = {
+            fromUser: currentUser,
+            message: msg,
+            time,
+            isGroup: !!activeGroup,
+            groupName: activeGroup
+        };
 
-  renderMessage(messageData);
+        renderMessage(messageData);
 
-  if (activeGroup) {
-    socket.emit("sendGroupMessage", messageData);
-  } else if (selectedUser) {
-    socket.emit("sendPrivateMessage", {
-      toUser: selectedUser,
-      ...messageData
+        if (activeGroup) {
+            socket.emit("sendGroupMessage", messageData);
+        } else if (selectedUser) {
+            socket.emit("sendPrivateMessage", {
+                toUser: selectedUser,
+                ...messageData
+            });
+        }
+
+        messageInput.value = "";
+        typingIndicator.innerText = "";
+        typingUsers.clear();
+        isTyping = false;
+    };
+
+
+    // typing
+    messageInput.addEventListener("input", () => {
+        if (!selectedUser && !activeGroup) return;
+
+        const value = messageInput.value.trim();
+
+        if (value.length > 0 && !isTyping) {
+            isTyping = true;
+            socket.emit("typing", {
+                fromUser: currentUser,
+                toUser: selectedUser,
+                groupName: activeGroup
+            });
+        }
+
+        if (value.length === 0 && isTyping) {
+            isTyping = false;
+            socket.emit("stopTyping", {
+                fromUser: currentUser,
+                toUser: selectedUser,
+                groupName: activeGroup
+            });
+        }
     });
-  }
 
-  messageInput.value = "";
-  typingIndicator.innerText = "";
-  typingUsers.clear();
-  isTyping = false;
-};
+    socket.on("typing", ({
+        fromUser,
+        groupName
+    }) => {
+        if (groupName && groupName === activeGroup) {
+            typingUsers.add(fromUser);
+            updateTypingIndicator();
+            return;
+        }
 
-
-/* ================= TYPING ================= */
-messageInput.addEventListener("input", () => {
-  if (!selectedUser && !activeGroup) return;
-
-  const value = messageInput.value.trim();
-
-  if (value.length > 0 && !isTyping) {
-    isTyping = true;
-    socket.emit("typing", {
-      fromUser: currentUser,
-      toUser: selectedUser,
-      groupName: activeGroup
+        if (!groupName && fromUser === selectedUser) {
+            typingIndicator.innerText = "1 person is typing...";
+        }
     });
-  }
 
-  if (value.length === 0 && isTyping) {
-    isTyping = false;
-    socket.emit("stopTyping", {
-      fromUser: currentUser,
-      toUser: selectedUser,
-      groupName: activeGroup
-    });                                                                                                                
-  }
-});
+    socket.on("stopTyping", ({
+        fromUser
+    }) => {
+        typingUsers.delete(fromUser);
+        updateTypingIndicator();
+    });
 
-socket.on("typing", ({ fromUser, groupName }) => {
-  if (groupName && groupName === activeGroup) {
-    typingUsers.add(fromUser);
-    updateTypingIndicator();
-    return;
-  }
-
-  if (!groupName && fromUser === selectedUser) {
-    typingIndicator.innerText = "1 person is typing...";
-  }
-});
-
-socket.on("stopTyping", ({ fromUser }) => {
-  typingUsers.delete(fromUser);
-  updateTypingIndicator();
-});
-
-function updateTypingIndicator() {
-  const count = typingUsers.size;
-  typingIndicator.innerText =
-    count === 0 ? "" : count === 1 ? "1 person is typing..." : `${count} people are typing...`;
-}
-</script>
+    function updateTypingIndicator() {
+        const count = typingUsers.size;
+        typingIndicator.innerText =
+            count === 0 ? "" : count === 1 ? "1 person is typing..." : `${count} people are typing...`;
+    }
+    </script>
 
 </body>
+
 </html>

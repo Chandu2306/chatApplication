@@ -11,7 +11,10 @@ export const register = async (req, res) => {
 
     const exists = await db.collection("users").findOne({ username });
     if (exists) {
-      return res.json({ success: false, message: "Username exists" });
+      return res.json({
+        success: false,
+        message: "Username already exists,try different",
+      });
     }
 
     const hashed = await bcrypt.hash(password, 10);
@@ -28,8 +31,7 @@ export const login = async (req, res) => {
 
   const user = await db.collection("users").findOne({ username });
   if (!user || !(await bcrypt.compare(password, user.password))) {
-    return res.json({ success: false, message: "wrong credentials" });
-    console.log("wrongggg");
+    return res.json({ success: false, message: "wrong username or password" });
   }
 
   const token = jwt.sign({ id: user._id, username: user.username }, SECRET, {
