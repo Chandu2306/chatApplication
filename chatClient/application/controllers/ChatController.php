@@ -142,8 +142,4 @@ public function __construct() {
 
     echo json_encode($response);
 }
-
-
-    
-
 }

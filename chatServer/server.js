@@ -1,15 +1,15 @@
 import dotenv from "dotenv";
-dotenv.config();
 import http from "node:http";
-import { Server } from "socket.io";
 import express from "express";
+import { Server } from "socket.io";
 import { socketHandler } from "./socket/socketHandler.js";
+import { fileURLToPath } from "url";
 import router from "./routes/userRouter.js";
 import cookieParser from "cookie-parser";
 import uploadRoute from "./routes/upload.js";
 import path from "path";
-import { fileURLToPath } from "url";
 import cors from "cors";
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

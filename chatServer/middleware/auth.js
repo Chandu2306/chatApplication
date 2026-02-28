@@ -4,7 +4,7 @@ dotenv.config();
 const SECRET = process.env.SECRET;
 
 export const authMiddleware = (req, res, next) => {
-  console.log("HEADERS:", req.headers); // 👈 TEMP DEBUG
+  console.log("HEADERS:", req.headers); 
 
   const authHeader = req.headers.authorization;
 

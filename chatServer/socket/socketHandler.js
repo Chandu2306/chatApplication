@@ -8,9 +8,8 @@ const groupMessagesCol = db.collection("groupMessages");
 
 export const socketHandler = (io) => {
   const onlineUsers = {};
-
+// connection
   io.on("connection", (socket) => {
-    // ---------------- REGISTER USER ----------------
     socket.on("registerUser", async (username) => {
       onlineUsers[username] = socket.id;
 
@@ -20,7 +19,7 @@ export const socketHandler = (io) => {
       io.emit("onlineUsers", onlineUsers);
     });
 
-    // ---------------- DISCONNECT ----------------
+    // disconnect
     socket.on("disconnect", () => {
       for (const user in onlineUsers) {
         if (onlineUsers[user] === socket.id) {
@@ -30,7 +29,7 @@ export const socketHandler = (io) => {
       io.emit("onlineUsers", onlineUsers);
     });
 
-    // ---------------- PRIVATE MESSAGE (TEXT + FILE) ----------------
+    // prviate message
     socket.on("sendPrivateMessage", async (data) => {
       const { toUser, fromUser, message = "", file = null, time } = data;
 
@@ -50,7 +49,7 @@ export const socketHandler = (io) => {
       }
     });
 
-    // ---------------- PRIVATE CHAT HISTORY ----------------
+    // private chat history
     socket.on("getChatHistory", async ({ fromUser, toUser }) => {
       const chats = await messagesCol
         .find({
@@ -65,7 +64,7 @@ export const socketHandler = (io) => {
       socket.emit("chatHistory", chats);
     });
 
-    // ---------------- CREATE GROUP ----------------
+    // group creation
     socket.on("createGroup", async ({ data }) => {
       const { admin, groupName, members, time } = data;
       const finalMembers = [...new Set([admin, ...members])];
@@ -86,13 +85,13 @@ export const socketHandler = (io) => {
       });
     });
 
-    // ---------------- MY GROUPS ----------------
+    // get user groups
     socket.on("getMyGroups", async (username) => {
       const groups = await groupsCol.find({ members: username }).toArray();
       socket.emit("myGroups", groups);
     });
 
-    // ---------------- GROUP MESSAGE (TEXT + FILE) ----------------
+    // group message
     socket.on("sendGroupMessage", async (data) => {
       const { groupName, fromUser, message = "", file = null, time } = data;
 
@@ -101,7 +100,7 @@ export const socketHandler = (io) => {
         groupName,
         fromUser,
         message,
-        file, // ✅ store file metadata
+        file,
         time,
         createdAt: new Date(),
       };
@@ -110,7 +109,7 @@ export const socketHandler = (io) => {
       io.to(groupName).emit("groupMsg", msg);
     });
 
-    // ---------------- GROUP HISTORY ----------------
+    // group chat history
     socket.on("getGroupHistory", async (groupName) => {
       const msgs = await groupMessagesCol
         .find({ groupName })
@@ -120,7 +119,7 @@ export const socketHandler = (io) => {
       socket.emit("groupHistory", msgs);
     });
 
-    // ---------------- TYPING ----------------
+    // typing indicator
     socket.on("typing", ({ fromUser, toUser, groupName }) => {
       if (groupName) {
         socket.to(groupName).emit("typing", { fromUser, groupName });

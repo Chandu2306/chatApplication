@@ -5,7 +5,6 @@ import fs from "fs";
 
 const router = express.Router();
 
-// ensure uploads folder exists
 const uploadDir = "uploads";
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
@@ -27,26 +26,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5mb
 });
 
-// router.post("/", upload.single("file"), (req, res) => {
-//   console.log(
-//     "---------------------------------------------------------------uuuuuuuuuuuuuuuuuuuuuuu",
-//   );
-//   if (!req.file) {
-//     return res.status(400).json({ success: false });
-//   }
 
-//   res.json({
-//     success: true,
-//     file: {
-//       name: req.file.originalname,
-//       type: req.file.mimetype,
-//       url: `/uploads/${req.file.filename}`,
-//     },
-//   });
-// });
 router.post("/", upload.single("file"), (req, res) => {
   console.log("FILE RECEIVED:", req.file);
 

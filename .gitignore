@@ -10,6 +10,7 @@ Thumbs.db
 
 # Backend
 chatServer/node_modules/
+chatServer/uploads/
 chatServer/.env
 chatServer/npm-debug.log*
 chatServer/yarn-debug.log*

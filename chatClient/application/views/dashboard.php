@@ -113,13 +113,11 @@ const allUsers = <?= json_encode($users); ?>;
 
 let typingTimeout;
 
-/* ================= CONNECT ================= */
 socket.on("connect", () => {
     socket.emit("registerUser", currentUser);
     socket.emit("getMyGroups", currentUser);
 });
 
-/* ================= ONLINE USERS ================= */
 socket.on("onlineUsers", users => {
 
     usersList = [];
@@ -137,7 +135,6 @@ socket.on("onlineUsers", users => {
     renderCombinedChats();
 });
 
-/* ================= GROUPS ================= */
 socket.on("myGroups", groups => {
 
     groupsList = [];
@@ -152,7 +149,6 @@ socket.on("myGroups", groups => {
     renderCombinedChats();
 });
 
-/* ================= JOIN GROUP REALTIME ================= */
 socket.on("joinGroup", groupName => {
 
     if (groupsList.some(g => g.name === groupName)) return;
@@ -165,7 +161,6 @@ socket.on("joinGroup", groupName => {
     renderCombinedChats();
 });
 
-/* ================= CHAT HISTORY ================= */
 socket.on("chatHistory", messages => {
     chatbox.innerHTML = "";
     messages.forEach(m => renderMessage(m));
@@ -176,12 +171,24 @@ socket.on("groupHistory", messages => {
     messages.forEach(m => renderMessage(m));
 });
 
-/* ================= RENDER CHATS ================= */
+socket.on("receivePrivateMessage", (msg) => {
+
+    if (selectedUser === msg.fromUser) {
+        renderMessage(msg);
+    }
+});
+
+socket.on("groupMsg", (msg) => {
+
+    if (activeGroup === msg.groupName) {
+        renderMessage(msg);
+    }
+});
+
 function renderCombinedChats() {
 
     chatsList.innerHTML = "";
 
-    // USERS FIRST, GROUPS AFTER
     const ordered = [...usersList, ...groupsList];
 
     ordered.forEach(chat => {
@@ -227,7 +234,7 @@ function renderCombinedChats() {
     });
 }
 
-/* ================= OPEN CHAT ================= */
+
 function openChat(name, isGroup) {
 
     messageContainer.classList.remove("hidden");
@@ -241,7 +248,6 @@ function openChat(name, isGroup) {
 typingIndicator.innerText = "";
 }
 
-/* ================= SEARCH FILTER ================= */
 searchInput.addEventListener("input", () => {
 
     const value = searchInput.value.toLowerCase();
@@ -254,7 +260,7 @@ searchInput.addEventListener("input", () => {
     });
 });
 
-/* ================= CREATE GROUP ================= */
+
 createGroupBtn.addEventListener("click", () => {
 
     const groupName = document.getElementById("groupName").value.trim();
@@ -274,7 +280,7 @@ createGroupBtn.addEventListener("click", () => {
     closeGroupModal();
 });
 
-/* ================= GROUP MODAL ================= */
+
 function renderGroupUserList() {
 
     listForGroupCreation.innerHTML = "";
@@ -329,7 +335,6 @@ function closeGroupModal() {
     document.getElementById("groupName").value = "";
 }
 
-/* ================= SEND MESSAGE ================= */
 privateMessageForm.onsubmit = e => {
 
     e.preventDefault();
@@ -442,7 +447,6 @@ function sendMessage(msg, time, file) {
     }
 }
 
-/* ================= RENDER MESSAGE ================= */
 function renderMessage(m) {
 
     const li = document.createElement("li");
@@ -470,12 +474,11 @@ function renderMessage(m) {
     chatbox.scrollTop = chatbox.scrollHeight;
 }
 
-/* ================= FILE ================= */
+
 fileInput.addEventListener("change", () => {
     selectedFile = fileInput.files[0] || null;
 });
 
-/* ================= TIME ================= */
 function getCurrentTime12() {
     const d = new Date();
     let h = d.getHours();
