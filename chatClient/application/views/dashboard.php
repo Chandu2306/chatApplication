@@ -37,12 +37,17 @@
 
             <div class="chat-header">
                 <p id="userInfo"></p>
+                <p id="typingIndicator" class="typing-indicator"></p>
             </div>
 
             <ul id="chatbox" class="chat-messages"></ul>
-
-
             <form id="privateMessageForm" class="chat-input">
+                <label class="file-btn">
+  <i class="fa-solid fa-paperclip"></i>
+  <input type="file" id="fileInput" hidden />
+</label>
+
+
                 <input id="privateMessage" type="text" placeholder="Type a message..." autocomplete="off" />
                 <button type="submit">Send</button>
             </form>
@@ -53,401 +58,430 @@
     </div>
 
     <!-- group modal -->
-    <div id="modalContainer" style="display:none;">
-        <div class="groupCreationModal">
+    <div id="modalContainer" class="modal-overlay">
+  <div class="groupCreationModal">
 
-            <h3>Create Group</h3>
+    <h3>Create Group</h3>
 
-            <input id="groupName" type="text" placeholder="Enter group name" autocomplete="off" />
+    <input id="groupName" type="text" placeholder="Enter group name" autocomplete="off" />
 
-            <h4>All Users</h4>
-            <ul id="listForGroupCreation"></ul>
-
-            <h4>Selected Members</h4>
-            <div id="selectedMembersList"></div>
-
-            <button id="createGroupBtn">Create Group</button>
-            <button id="closeGroupModal" onclick="closeGroupModal()">cancel</button>
-
-        </div>
+    <div class="users-section">
+      <h4>All Users</h4>
+      <ul id="listForGroupCreation" class="users-list"></ul>
     </div>
-    <script src="http://localhost:4000/socket.io/socket.io.js"></script>
-    <script>
-    const socket = io("http://localhost:4000");
 
+    <div class="selected-section">
+      <h4>Selected Members</h4>
+      <div id="selectedMembersList" class="selected-members"></div>
+    </div>
 
-    let selectedUser = null;
-    let activeGroup = null;
-    let selectedMembers = [];
-    let isTyping = false;
-    let combinedChats = [];
+    <div class="modal-buttons">
+      <button id="createGroupBtn" class="primary-btn">Create Group</button>
+      <button onclick="closeGroupModal()" class="secondary-btn">Cancel</button>
+    </div>
 
-    const currentUser = "<?= htmlspecialchars($currentUser ?? '') ?>";
-    const chatsList = document.getElementById("chatsList");
-    const chatbox = document.getElementById("chatbox");
-    const messageInput = document.getElementById("privateMessage");
-    const messageContainer = document.getElementById("messageContainer");
-    const privateMessageForm = document.getElementById("privateMessageForm");
-    const createGroupBtn = document.getElementById("createGroupBtn");
-    const listForGroupCreation = document.getElementById("listForGroupCreation");
-    const selectedMembersList = document.getElementById("selectedMembersList");
-    const userInfo = document.getElementById("userInfo");
-    const typingUsers = new Set();
+  </div>
+</div>
+</div>
+<script src="http://localhost:4000/socket.io/socket.io.js"></script>
+<script>
+const socket = io("http://localhost:4000");
 
-    const typingIndicator = document.createElement("p");
-    typingIndicator.className = "typing-indicator";
-    document.querySelector(".chat-header").appendChild(typingIndicator);
+let selectedUser = null;
+let activeGroup = null;
+let selectedMembers = [];
+let selectedFile = null;
 
-    const allUsers = <?= json_encode($users); ?>;
-    console.log("users", allUsers);
+let usersList = [];
+let groupsList = [];
 
-    function getCurrentTime12() {
-        const d = new Date();
-        let h = d.getHours(),
-            m = d.getMinutes();
-        const ampm = h >= 12 ? "PM" : "AM";
-        h = h % 12 || 12;
-        return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
-    }
+const currentUser = "<?= htmlspecialchars($currentUser ?? '') ?>";
+const chatsList = document.getElementById("chatsList");
+const chatbox = document.getElementById("chatbox");
+const messageInput = document.getElementById("privateMessage");
+const messageContainer = document.getElementById("messageContainer");
+const privateMessageForm = document.getElementById("privateMessageForm");
+const createGroupBtn = document.getElementById("createGroupBtn");
+const listForGroupCreation = document.getElementById("listForGroupCreation");
+const selectedMembersList = document.getElementById("selectedMembersList");
+const userInfo = document.getElementById("userInfo");
+const fileInput = document.getElementById("fileInput");
+const searchInput = document.getElementById("searchChats");
+const typingIndicator = document.getElementById("typingIndicator");
+const typingUsers = new Set();
+const allUsers = <?= json_encode($users); ?>;
 
-    function scrollToBottom() {
-        chatbox.scrollTo({
-            top: chatbox.scrollHeight,
-            behavior: "smooth"
+let typingTimeout;
+
+/* ================= CONNECT ================= */
+socket.on("connect", () => {
+    socket.emit("registerUser", currentUser);
+    socket.emit("getMyGroups", currentUser);
+});
+
+/* ================= ONLINE USERS ================= */
+socket.on("onlineUsers", users => {
+
+    usersList = [];
+
+    allUsers.forEach(u => {
+        if (u.username === currentUser) return;
+
+        usersList.push({
+            type: "user",
+            name: u.username,
+            online: !!users[u.username]
         });
-    }
-
-    createGroupBtn.addEventListener("click", () => {
-        const groupName = document.getElementById("groupName").value.trim();
-
-        if (!groupName) {
-            alert("Group name required");
-            return;
-        }
-
-        if (selectedMembers.length === 0) {
-            alert("Select at least one member");
-            return;
-        }
-
-        socket.emit("createGroup", {
-            data: {
-                admin: currentUser,
-                groupName,
-                members: selectedMembers,
-                time: new Date()
-            }
-        });
-
-        document.getElementById("modalContainer").style.display = "none";
-        selectedMembers = [];
-        selectedMembersList.innerHTML = "";
     });
 
-    function renderGroupUserList() {
-        listForGroupCreation.innerHTML = "";
+    renderCombinedChats();
+});
 
-        allUsers.forEach(u => {
-            if (u.username === currentUser) return;
+/* ================= GROUPS ================= */
+socket.on("myGroups", groups => {
 
-            const li = document.createElement("li");
-            li.innerText = u.username;
+    groupsList = [];
+
+    groups.forEach(g => {
+        groupsList.push({
+            type: "group",
+            name: g.groupName
+        });
+    });
+
+    renderCombinedChats();
+});
+
+/* ================= JOIN GROUP REALTIME ================= */
+socket.on("joinGroup", groupName => {
+
+    if (groupsList.some(g => g.name === groupName)) return;
+
+    groupsList.push({
+        type: "group",
+        name: groupName
+    });
+
+    renderCombinedChats();
+});
+
+/* ================= CHAT HISTORY ================= */
+socket.on("chatHistory", messages => {
+    chatbox.innerHTML = "";
+    messages.forEach(m => renderMessage(m));
+});
+
+socket.on("groupHistory", messages => {
+    chatbox.innerHTML = "";
+    messages.forEach(m => renderMessage(m));
+});
+
+/* ================= RENDER CHATS ================= */
+function renderCombinedChats() {
+
+    chatsList.innerHTML = "";
+
+    // USERS FIRST, GROUPS AFTER
+    const ordered = [...usersList, ...groupsList];
+
+    ordered.forEach(chat => {
+
+        const li = document.createElement("li");
+        li.dataset.name = chat.name.toLowerCase();
+        li.dataset.type = chat.type;
+
+        if (chat.type === "user") {
+
+            li.innerHTML = `
+                <span>${chat.name}</span>
+                <span class="status-dot ${chat.online ? "online" : "offline"}"></span>
+            `;
 
             li.onclick = () => {
-                if (selectedMembers.includes(u.username)) return;
-
-                selectedMembers.push(u.username);
-                updateSelectedMembers();
+                selectedUser = chat.name;
+                activeGroup = null;
+                openChat(chat.name, false);
+                socket.emit("getChatHistory", {
+                    fromUser: currentUser,
+                    toUser: chat.name
+                });
             };
-
-            listForGroupCreation.appendChild(li);
-        });
-    }
-    const searchInput = document.getElementById("searchChats");
-
-    searchInput.addEventListener("input", () => {
-        const query = searchInput.value.toLowerCase().trim();
-
-        const items = chatsList.querySelectorAll("li");
-
-        items.forEach(li => {
-            const name = li.dataset.name;
-
-            if (!query || name.includes(query)) {
-                li.style.display = "flex";
-            } else {
-                li.style.display = "none";
-            }
-        });
-    });
-
-
-    function createGroupModal() {
-        document.getElementById("modalContainer").style.display = "flex";
-        renderGroupUserList();
-    }
-
-    function closeGroupModal() {
-        document.getElementById("modalContainer").style.display = "none";
-        selectedMembers = [];
-        selectedMembersList.innerHTML = "";
-    }
-
-    function updateSelectedMembers() {
-        selectedMembersList.innerHTML = "";
-
-        selectedMembers.forEach(member => {
-            const span = document.createElement("span");
-            span.className = "selected-member";
-            span.innerText = member;
-
-            span.onclick = () => {
-                selectedMembers = selectedMembers.filter(m => m !== member);
-                updateSelectedMembers();
-            };
-
-            selectedMembersList.appendChild(span);
-        });
-    }
-
-
-
-
-
-    socket.on("connect", () => {
-        socket.emit("registerUser", currentUser);
-        socket.emit("getMyGroups", currentUser);
-    });
-
-
-    socket.on("onlineUsers", users => {
-        combinedChats = [];
-
-        allUsers.forEach(u => {
-            if (u.username === currentUser) return;
-
-            combinedChats.push({
-                type: "user",
-                name: u.username,
-                online: !!users[u.username]
-            });
-        });
-
-        renderCombinedChats();
-    });
-
-
-
-    socket.on("myGroups", groups => {
-        combinedChats = combinedChats.filter(c => c.type !== "group");
-
-        groups.forEach(g => {
-            combinedChats.push({
-                type: "group",
-                name: g.groupName
-            });
-        });
-
-        renderCombinedChats();
-    });
-
-    function renderCombinedChats() {
-        chatsList.innerHTML = "";
-
-        combinedChats.forEach(chat => {
-            const li = document.createElement("li");
-            li.dataset.name = chat.name.toLowerCase();
-            li.dataset.type = chat.type;
-
-            if (chat.type === "user") {
-                li.innerHTML = `
-        <span>${chat.name}</span>
-        <span class="status-dot ${chat.online ? "online" : "offline"}"></span>
-      `;
-
-                li.onclick = () => {
-                    selectedUser = chat.name;
-                    activeGroup = null;
-                    userInfo.innerText = chat.name;
-                    messageContainer.classList.remove("hidden");
-                    chatbox.innerHTML = "";
-                    typingIndicator.innerText = "";
-
-                    socket.emit("getChatHistory", {
-                        fromUser: currentUser,
-                        toUser: chat.name
-                    });
-                };
-            }
-
-            if (chat.type === "group") {
-                li.innerHTML = `
-        <span>${chat.name}</span>
-        <i class="fa-solid fa-users group-icon"></i>
-      `;
-
-                li.onclick = () => {
-                    activeGroup = chat.name;
-                    selectedUser = null;
-                    userInfo.innerText = `Group: ${chat.name}`;
-                    messageContainer.classList.remove("hidden");
-                    chatbox.innerHTML = "";
-                    typingIndicator.innerText = "";
-
-                    socket.emit("getGroupHistory", chat.name);
-                };
-            }
-
-            chatsList.appendChild(li);
-        });
-    }
-
-    socket.on("joinGroup", groupName => {
-        if (combinedChats.some(c => c.type === "group" && c.name === groupName)) {
-            return;
         }
 
-        combinedChats.push({
-            type: "group",
-            name: groupName
-        });
+        if (chat.type === "group") {
 
-        renderCombinedChats();
+            li.innerHTML = `
+                <span>${chat.name}</span>
+                <i class="fa-solid fa-users group-icon"></i>
+            `;
+
+            li.onclick = () => {
+                activeGroup = chat.name;
+                selectedUser = null;
+                openChat(chat.name, true);
+                socket.emit("getGroupHistory", chat.name);
+            };
+        }
+
+        chatsList.appendChild(li);
+    });
+}
+
+/* ================= OPEN CHAT ================= */
+function openChat(name, isGroup) {
+
+    messageContainer.classList.remove("hidden");
+    chatbox.innerHTML = "";
+    messageInput.value = "";
+    fileInput.value = "";
+    selectedFile = null;
+
+    userInfo.innerText = isGroup ? `Group: ${name}` : name;
+    typingUsers.clear();
+typingIndicator.innerText = "";
+}
+
+/* ================= SEARCH FILTER ================= */
+searchInput.addEventListener("input", () => {
+
+    const value = searchInput.value.toLowerCase();
+
+    const items = chatsList.querySelectorAll("li");
+
+    items.forEach(li => {
+        const name = li.dataset.name;
+        li.style.display = name.includes(value) ? "flex" : "none";
+    });
+});
+
+/* ================= CREATE GROUP ================= */
+createGroupBtn.addEventListener("click", () => {
+
+    const groupName = document.getElementById("groupName").value.trim();
+
+    if (!groupName) return alert("Group name required");
+    if (selectedMembers.length === 0) return alert("Select members");
+
+    socket.emit("createGroup", {
+        data: {
+            admin: currentUser,
+            groupName,
+            members: selectedMembers,
+            time: new Date()
+        }
     });
 
+    closeGroupModal();
+});
 
-    socket.on("chatHistory", msgs => {
-        chatbox.innerHTML = "";
-        msgs.forEach(renderMessage);
-        scrollToBottom();
-    });
+/* ================= GROUP MODAL ================= */
+function renderGroupUserList() {
 
-    socket.on("groupHistory", msgs => {
-        chatbox.innerHTML = "";
-        msgs.forEach(renderMessage);
-        scrollToBottom();
-    });
+    listForGroupCreation.innerHTML = "";
 
-    socket.on("receivePrivateMessage", m => {
-        if (m.fromUser === selectedUser) renderMessage(m);
-    });
+    allUsers.forEach(u => {
 
-    socket.on("groupMsg", m => {
-        if (m.groupName === activeGroup) renderMessage(m);
-    });
+        if (u.username === currentUser) return;
 
-    function renderMessage(m) {
         const li = document.createElement("li");
+        li.innerText = u.username;
 
-        if (m.isGroup && m.fromUser === currentUser) {
-            li.innerHTML = `<span class="msgFrom">You</span>
-                    <p>${m.message}</p>
-                    <span class="time_text">${m.time}</span>`;
-        } else if (m.isGroup) {
-            li.innerHTML = `<span class="msgFrom">${m.fromUser}</span>
-                    <p>${m.message}</p>
-                    <span class="time_text">${m.time}</span>`;
-        } else {
-            li.innerHTML = `<p>${m.message}</p>
-                    <span class="time_text">${m.time}</span>`;
-        }
+        li.onclick = () => {
 
-        li.className =
-            m.fromUser === currentUser ? "sent_message" : "received_message";
+            if (selectedMembers.includes(u.username)) return;
 
-        chatbox.appendChild(li);
-        scrollToBottom();
-    }
-
-
-    privateMessageForm.onsubmit = e => {
-        e.preventDefault();
-
-        const msg = messageInput.value.trim();
-        if (!msg) return;
-
-        const time = getCurrentTime12();
-
-        const messageData = {
-            fromUser: currentUser,
-            message: msg,
-            time,
-            isGroup: !!activeGroup,
-            groupName: activeGroup
+            selectedMembers.push(u.username);
+            updateSelectedMembers();
         };
 
-        renderMessage(messageData);
+        listForGroupCreation.appendChild(li);
+    });
+}
 
-        if (activeGroup) {
-            socket.emit("sendGroupMessage", messageData);
-        } else if (selectedUser) {
-            socket.emit("sendPrivateMessage", {
-                toUser: selectedUser,
-                ...messageData
-            });
-        }
+function updateSelectedMembers() {
 
-        messageInput.value = "";
+    selectedMembersList.innerHTML = "";
+
+    selectedMembers.forEach(member => {
+
+        const span = document.createElement("span");
+        span.className = "selected-member";
+        span.innerText = member;
+
+        span.onclick = () => {
+            selectedMembers = selectedMembers.filter(m => m !== member);
+            updateSelectedMembers();
+        };
+
+        selectedMembersList.appendChild(span);
+    });
+}
+
+function createGroupModal() {
+    document.getElementById("modalContainer").style.display = "flex";
+    renderGroupUserList();
+}
+
+function closeGroupModal() {
+    document.getElementById("modalContainer").style.display = "none";
+    selectedMembers = [];
+    selectedMembersList.innerHTML = "";
+    document.getElementById("groupName").value = "";
+}
+
+/* ================= SEND MESSAGE ================= */
+privateMessageForm.onsubmit = e => {
+
+    e.preventDefault();
+
+    const msg = messageInput.value.trim();
+    if (!msg && !selectedFile) return;
+
+    const time = getCurrentTime12();
+
+    if (selectedFile) {
+
+        const form = new FormData();
+        form.append("file", selectedFile);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "http://localhost:4000/upload");
+
+        xhr.onload = () => {
+            const res = JSON.parse(xhr.responseText);
+            if (!res.success) return;
+
+            sendMessage(msg, time, res.file);
+        };
+
+        xhr.send(form);
+
+    } else {
+        sendMessage(msg, time, null);
+    }
+
+    messageInput.value = "";
+    fileInput.value = "";
+    selectedFile = null;
+};
+messageInput.addEventListener("input", () => {
+
+    if (!selectedUser && !activeGroup) return;
+
+    socket.emit("typing", {
+        fromUser: currentUser,
+        toUser: selectedUser,
+        groupName: activeGroup
+    });
+
+    clearTimeout(typingTimeout);
+
+    typingTimeout = setTimeout(() => {
+        socket.emit("stopTyping", {
+            fromUser: currentUser,
+            toUser: selectedUser,
+            groupName: activeGroup
+        });
+    }, 1000);
+});
+
+socket.on("typing", data => {
+
+    if (data.fromUser === currentUser) return;
+
+    if (activeGroup) {
+        if (data.groupName !== activeGroup) return;
+    } else {
+        if (data.fromUser !== selectedUser) return;
+    }
+
+    typingUsers.add(data.fromUser);
+    updateTypingIndicator();
+});
+
+socket.on("stopTyping", data => {
+
+    typingUsers.delete(data.fromUser);
+    updateTypingIndicator();
+});
+
+function updateTypingIndicator() {
+
+    if (typingUsers.size === 0) {
         typingIndicator.innerText = "";
-        typingUsers.clear();
-        isTyping = false;
+        return;
+    }
+
+    const names = Array.from(typingUsers);
+
+    if (names.length === 1) {
+        typingIndicator.innerText = `${names[0]} is typing...`;
+    } else {
+        typingIndicator.innerText = `${names.join(", ")} are typing...`;
+    }
+}
+function sendMessage(msg, time, file) {
+
+    const messageData = {
+        fromUser: currentUser,
+        message: msg,
+        time,
+        file,
+        groupName: activeGroup
     };
 
+    renderMessage(messageData);
 
-    // typing
-    messageInput.addEventListener("input", () => {
-        if (!selectedUser && !activeGroup) return;
-
-        const value = messageInput.value.trim();
-
-        if (value.length > 0 && !isTyping) {
-            isTyping = true;
-            socket.emit("typing", {
-                fromUser: currentUser,
-                toUser: selectedUser,
-                groupName: activeGroup
-            });
-        }
-
-        if (value.length === 0 && isTyping) {
-            isTyping = false;
-            socket.emit("stopTyping", {
-                fromUser: currentUser,
-                toUser: selectedUser,
-                groupName: activeGroup
-            });
-        }
-    });
-
-    socket.on("typing", ({
-        fromUser,
-        groupName
-    }) => {
-        if (groupName && groupName === activeGroup) {
-            typingUsers.add(fromUser);
-            updateTypingIndicator();
-            return;
-        }
-
-        if (!groupName && fromUser === selectedUser) {
-            typingIndicator.innerText = "1 person is typing...";
-        }
-    });
-
-    socket.on("stopTyping", ({
-        fromUser
-    }) => {
-        typingUsers.delete(fromUser);
-        updateTypingIndicator();
-    });
-
-    function updateTypingIndicator() {
-        const count = typingUsers.size;
-        typingIndicator.innerText =
-            count === 0 ? "" : count === 1 ? "1 person is typing..." : `${count} people are typing...`;
+    if (activeGroup) {
+        socket.emit("sendGroupMessage", messageData);
+    } else {
+        socket.emit("sendPrivateMessage", {
+            toUser: selectedUser,
+            ...messageData
+        });
     }
-    </script>
+}
 
-</body>
+/* ================= RENDER MESSAGE ================= */
+function renderMessage(m) {
 
-</html>
+    const li = document.createElement("li");
+    let content = "";
+
+    if (m.message) content += `<p>${m.message}</p>`;
+
+    if (m.file) {
+        if (m.file.type.startsWith("image")) {
+            content += `<img src="http://localhost:4000${m.file.url}" />`;
+        } else {
+            content += `
+                <a class="file-attachment" href="http://localhost:4000${m.file.url}" download>
+                    <i class="fa-solid fa-paperclip"></i>
+                    <span>${m.file.name}</span>
+                </a>
+            `;
+        }
+    }
+
+    li.innerHTML = `${content}<span class="time_text">${m.time}</span>`;
+    li.className = m.fromUser === currentUser ? "sent_message" : "received_message";
+
+    chatbox.appendChild(li);
+    chatbox.scrollTop = chatbox.scrollHeight;
+}
+
+/* ================= FILE ================= */
+fileInput.addEventListener("change", () => {
+    selectedFile = fileInput.files[0] || null;
+});
+
+/* ================= TIME ================= */
+function getCurrentTime12() {
+    const d = new Date();
+    let h = d.getHours();
+    let m = d.getMinutes();
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
+}
+</script>

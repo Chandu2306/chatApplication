@@ -10,27 +10,34 @@ public function __construct() {
     $this->api_url = env('API_URL', 'http://localhost:4000');
 }
 
-    private function callApi($endpoint, $data = []) {
+    private function callApi($endpoint, $data = [], $isFile = false) {
     $ch = curl_init($this->api_url . $endpoint);
 
-    $headers = ["Content-Type: application/json"];
+    $headers = [];
 
     if (isset($_COOKIE["token"])) {
         $headers[] = "Authorization: Bearer " . $_COOKIE["token"];
     }
 
+    if (!$isFile) {
+        $headers[] = "Content-Type: application/json";
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    } else {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data); // multipart
+    }
+
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
-        CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_POSTFIELDS => json_encode($data)
+        CURLOPT_HTTPHEADER => $headers
     ]);
 
     $response = curl_exec($ch);
     curl_close($ch);
 
     return json_decode($response, true);
-    }
+}
+
     public function index() {
         $this->load->view("register");
     }
@@ -116,6 +123,26 @@ public function __construct() {
         setcookie("token", "", time() - 3600, "/");
         redirect("chatcontroller/login");
     }
+
+    public function uploadMedia() {
+    if (empty($_FILES["file"]["tmp_name"])) {
+        echo json_encode(["success" => false]);
+        return;
+    }
+
+    $file = new CURLFile(
+        $_FILES["file"]["tmp_name"],
+        $_FILES["file"]["type"],
+        $_FILES["file"]["name"]
+    );
+
+    $data = ["file" => $file];
+
+    $response = $this->callApi("/upload", $data, true);
+
+    echo json_encode($response);
+}
+
 
     
 
